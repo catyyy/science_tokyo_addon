@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { width: 600px; padding: 15px; font-family: 'Segoe UI', sans-serif; background: #f9f9f9; }
+        h3 { margin-top: 0; color: #333; border-bottom: 2px solid #2196F3; padding-bottom: 10px; }
+        .section { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 15px; }
+        
+        /* 表单样式 */
+        label { display: block; margin-bottom: 5px; font-weight: bold; color: #555; }
+        input[type="text"], input[type="password"] {
+            width: 100%; padding: 8px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;
+        }
+
+        /* 矩阵样式 */
+        .matrix-container { display: inline-block; }
+        .row-labels { float: left; margin-top: 25px; margin-right: 5px; }
+        .row-label { height: 35px; line-height: 35px; text-align: center; font-weight: bold; color: #666; }
+        
+        .matrix-grid { display: grid; grid-template-columns: repeat(10, 35px); gap: 3px; }
+        .col-labels { display: grid; grid-template-columns: repeat(10, 35px); gap: 3px; margin-bottom: 3px; margin-left: 20px; }
+        .col-label { text-align: center; font-weight: bold; font-size: 12px; color: #666; }
+        
+        .matrix-input {
+            width: 35px; height: 35px; text-align: center; border: 1px solid #ccc;
+            text-transform: uppercase; border-radius: 3px; font-weight: bold;
+        }
+        .matrix-input:focus { border-color: #2196F3; background: #e3f2fd; outline: none; }
+
+        /* 按钮 */
+        button {
+            width: 100%; padding: 10px; border: none; border-radius: 5px;
+            font-size: 14px; cursor: pointer; transition: background 0.2s;
+        }
+        #save-btn { background: #2196F3; color: white; font-weight: bold; }
+        #save-btn:hover { background: #1976D2; }
+        
+        .status-msg { text-align: center; margin-top: 10px; font-size: 12px; height: 15px; color: #666; }
+        /* 新增：危险操作按钮样式 */
+        .danger-btn {
+            background: #ff5252; /* 红色背景 */
+            color: white;
+            margin-top: 10px; /* 和上面的按钮拉开距离 */
+        }
+        .danger-btn:hover {
+            background: #d32f2f; /* 鼠标悬停变深红 */
+        }
+    </style>
+</head>
+<body>
+    <h3>🔧 自动认证设置</h3>
+
+    <div class="section">
+        <label>学籍番号 / Student ID</label>
+        <input type="text" id="username" placeholder="例: 23B12345">
+        
+        <label>密码 / Password</label>
+        <input type="password" id="password" placeholder="Portal Password">
+    </div>
+
+    <div class="section">
+        <label>矩阵代码 / Matrix Code</label>
+        <div style="font-size: 11px; color: #888; margin-bottom: 10px;">输入对应坐标的字母 (会自动大写, 支持方向键移动)</div>
+        
+        <div class="col-labels">
+            </div>
+        <div class="matrix-container">
+            <div class="row-labels">
+                </div>
+            <div class="matrix-grid" id="grid-target">
+                </div>
+        </div>
+    </div>
+
+    <button id="save-btn">保存配置 (Save)</button>
+    <button id="reset-btn" class="danger-btn">重置所有配置 (Reset All)</button>
+    <div class="status-msg" id="status"></div>
+
+    <script src="jquery.min.js"></script>
+    <script src="popup.js"></script>
+</body>
+</html>

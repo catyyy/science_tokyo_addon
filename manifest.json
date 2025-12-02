@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "东京科学大学自动认证系统",
+  "version": "1.1",
+  "description": "自动输入学籍号、密码及矩阵代码",
+  "permissions": ["storage"],
+  "host_permissions": [
+    "https://portal.nap.gsic.titech.ac.jp/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "点击配置自动登录"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://portal.nap.gsic.titech.ac.jp/GetAccess/Login*"],
+      "js": ["jquery.min.js", "content.js"],
+      "run_at": "document_end"
+    }
+  ]
+}
