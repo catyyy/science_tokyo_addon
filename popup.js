@@ -4,6 +4,7 @@ $(document).ready(function() {
 });
 
 let cropper = null;
+let isProcessing = false; // 用于中断处理
 
 // ================= 视图导航 =================
 function switchView(viewId) {
@@ -36,9 +37,11 @@ function bindEvents() {
     $('#btn-select-file').click(() => $('#file-input').click());
     $('#file-input').change(handleFileSelect);
 
-    $('#btn-confirm-crop').click(startCropAndRecognize);
+    // 绑定新的单字识别逻辑
+    $('#btn-confirm-crop').click(startSingleCellRecognition);
 
     $('#back-to-ocr').click(() => {
+        isProcessing = false; // 停止可能的循环
         $('#crop-container').show();
         $('#debug-preview-container').hide();
         $('#ocr-status').text('');
@@ -50,15 +53,11 @@ function bindEvents() {
 }
 
 // ================= 裁剪逻辑 =================
-
 function handleFileSelect(e) {
     const file = e.target.files[0];
     if (!file) return;
 
-    if (cropper) {
-        cropper.destroy();
-        cropper = null;
-    }
+    if (cropper) { cropper.destroy(); cropper = null; }
 
     const reader = new FileReader();
     reader.onload = function(event) {
@@ -100,121 +99,47 @@ function resetOCRView() {
     $('#ocr-progress').hide();
     $('#ocr-status').text('');
     $('#debug-preview-container').hide();
-    if(cropper) {
-        cropper.destroy();
-        cropper = null;
-    }
+    if(cropper) { cropper.destroy(); cropper = null; }
     $('#image-to-crop').attr('src', '');
 }
 
-// ================= 核心算法：无损几何重构 =================
-function reconstructGrid(originalBlob) {
-    return new Promise((resolve) => {
-        const img = new Image();
-        img.onload = () => {
-            const cols = 10;
-            const rows = 7;
-            
-            // 1. 创建新画布
-            const newCanvas = document.createElement('canvas');
-            const cellW = 60; // 稍微加大单个格子的像素
-            const cellH = 60;
-            newCanvas.width = cols * cellW;
-            newCanvas.height = rows * cellH;
-            
-            const ctx = newCanvas.getContext('2d');
-            ctx.fillStyle = "#FFFFFF";
-            ctx.fillRect(0, 0, newCanvas.width, newCanvas.height);
-            
-            const srcStepW = img.width / cols;
-            const srcStepH = img.height / rows;
-            
-            // 2. 调整内缩比例 (Padding)
-            // 改为 0.15 (只扔掉边缘 15%)，保留更多字母细节
-            // 只要网格线不是特别粗，这个比例足以避开网格线，同时保留字母完整
-            const padRatio = 0.15; 
-            
-            for (let r = 0; r < rows; r++) {
-                for (let c = 0; c < cols; c++) {
-                    const sx = (c * srcStepW) + (srcStepW * padRatio);
-                    const sy = (r * srcStepH) + (srcStepH * padRatio);
-                    const sw = srcStepW * (1 - 2 * padRatio);
-                    const sh = srcStepH * (1 - 2 * padRatio);
-                    
-                    // 在新格子里，留出 10px 的白边，防止字母粘连
-                    const dx = (c * cellW) + 10;
-                    const dy = (r * cellH) + 10;
-                    const dw = cellW - 20;
-                    const dh = cellH - 20;
-                    
-                    ctx.drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh);
-                }
-            }
-            
-            // 3. 简单的二值化 (Simple Thresholding)
-            // 这里不做任何腐蚀/膨胀，只把颜色加深，保护字形！
-            const imageData = ctx.getImageData(0, 0, newCanvas.width, newCanvas.height);
-            const data = imageData.data;
-            for (let i = 0; i < data.length; i += 4) {
-                // 加权灰度
-                const gray = 0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2];
-                // 阈值设为 140，对于白底黑字的照片效果很好
-                const val = gray < 140 ? 0 : 255; 
-                data[i] = val; data[i+1] = val; data[i+2] = val;
-            }
-            ctx.putImageData(imageData, 0, 0);
+// ================= 核心：单字切片识别 (Single Cell Recognition) =================
 
-            newCanvas.toBlob((blob) => {
-                resolve(blob);
-            }, 'image/jpeg', 1.0);
-        };
-        img.src = URL.createObjectURL(originalBlob);
-    });
-}
-
-// ================= OCR 识别逻辑 =================
-
-async function startCropAndRecognize() {
+async function startSingleCellRecognition() {
     if (!cropper) return;
+    isProcessing = true;
 
-    $('#btn-confirm-crop').prop('disabled', true).text('处理中...');
-    
+    $('#btn-confirm-crop').prop('disabled', true).text('初始化引擎...');
+    $('#ocr-progress').show();
+    $('#crop-preview').attr('src', ''); 
+    $('#debug-preview-container').show();
+    $('.debug-hint').text("正在逐个识别 (Live Preview)...");
+
+    // 获取裁剪后的原图 (不压缩，最高质量)
     cropper.getCroppedCanvas().toBlob(async (blob) => {
-        if (!blob) {
-            alert("裁剪失败");
-            return;
-        }
-
-        $('#ocr-status').text("正在重构网格...");
+        if (!blob) return;
         
-        // 1. 重构
-        const cleanBlob = await reconstructGrid(blob);
-
-        // 2. 预览
-        const previewUrl = URL.createObjectURL(cleanBlob);
-        $('#crop-preview').attr('src', previewUrl);
-        $('#debug-preview-container').show();
-        $('#crop-container').slideUp(); 
-        $('#crop-hint').hide();
-        
-        // 3. 识别
-        await runTesseract(cleanBlob);
-        
-        $('#btn-confirm-crop').prop('disabled', false).text('✂ 确认并识别');
+        const img = new Image();
+        img.onload = async () => {
+            await process70Cells(img);
+        };
+        img.src = URL.createObjectURL(blob);
 
     }, 'image/jpeg', 1.0);
 }
 
-async function runTesseract(imageBlob) {
-    $('#ocr-progress').show();
-    $('#ocr-status').text("加载本地模型...").css('color', '#666');
-
+async function process70Cells(sourceImg) {
+    $('#crop-container').slideUp();
+    $('#crop-hint').hide();
+    
     let worker = null;
     try {
         const workerPath = chrome.runtime.getURL('worker.min.js');
         const corePath = chrome.runtime.getURL('tesseract-core.wasm.js');
         const langPath = chrome.runtime.getURL('/'); 
 
+        // 1. 初始化 Worker
+        // 【关键修复】load_system_dawg 必须在这里设置，否则会报错
         worker = await Tesseract.createWorker('eng', 1, {
             workerPath: workerPath,
             corePath: corePath,
@@ -222,73 +147,112 @@ async function runTesseract(imageBlob) {
             cacheMethod: 'none',
             gzip: false,
             workerBlobURL: false,
-            logger: m => {
-                if (m.status === 'recognizing text') {
-                    $('#ocr-bar').css('width', `${m.progress * 100}%`);
-                    $('#ocr-status').text(`识别中... ${Math.floor(m.progress * 100)}%`);
-                }
+            params: {
+                load_system_dawg: '0',
+                load_freq_dawg: '0',
             }
         });
 
+        // 2. 设置运行时参数
         await worker.setParameters({ 
-            tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
-            tessedit_char_blacklist: '0123456789abcdefghijklmnopqrstuvwxyz',
-            // 依然使用 PSM 6，因为它对排列整齐的字母块效果最好
-            tessedit_pageseg_mode: '6', 
-            
-            // 禁用字典
-            load_system_dawg: '0',
-            load_freq_dawg: '0'
+            tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', // 纯大写
+            tessedit_char_blacklist: '0123456789abcdefghijklmnopqrstuvwxyz', 
+            tessedit_pageseg_mode: '10' // 【核心】PSM 10: 单个字符模式
         });
+
+        const cols = 10;
+        const rows = 7;
+        const stepW = sourceImg.width / cols;
+        const stepH = sourceImg.height / rows;
         
-        $('#ocr-status').text("正在读取字母...");
-        
-        const { data: { text } } = await worker.recognize(imageBlob);
-        
+        // PadRatio: 0.2 (只取格子中心 60% 的区域，绝对避开网格线)
+        const padRatio = 0.2;
+
+        const $inputs = $('.matrix-input');
+        $inputs.val(''); 
+
+        // 3. 循环 70 次
+        let count = 0;
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                if (!isProcessing) break; 
+
+                // --- 切片 ---
+                const sx = (c * stepW) + (stepW * padRatio);
+                const sy = (r * stepH) + (stepH * padRatio);
+                const sw = stepW * (1 - 2 * padRatio);
+                const sh = stepH * (1 - 2 * padRatio);
+
+                // --- 绘图 ---
+                const cellCanvas = document.createElement('canvas');
+                cellCanvas.width = 60;  // 固定 60px 大小供 AI 识别
+                cellCanvas.height = 60;
+                const ctx = cellCanvas.getContext('2d');
+                
+                // 白底
+                ctx.fillStyle = "white";
+                ctx.fillRect(0, 0, 60, 60);
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
+                
+                // 画入中间，留 5px 边距
+                ctx.drawImage(sourceImg, sx, sy, sw, sh, 5, 5, 50, 50);
+                
+                // --- 图像增强 (Gamma 校正) ---
+                // 不做硬二值化，防止 Q 尾巴断裂
+                const imageData = ctx.getImageData(0, 0, 60, 60);
+                const data = imageData.data;
+                for (let i = 0; i < data.length; i += 4) {
+                    const gray = 0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2];
+                    // Gamma 0.6 (加深中间色调)
+                    let val = 255 * Math.pow((gray / 255), 0.6);
+                    // 简单的白平衡：太亮的直接变白，去除背景底色
+                    if(val > 180) val = 255; 
+                    
+                    data[i] = val; data[i+1] = val; data[i+2] = val;
+                }
+                ctx.putImageData(imageData, 0, 0);
+
+                // --- 实时预览 ---
+                // 让用户看到 AI 现在正在看哪个字
+                const previewUrl = cellCanvas.toDataURL();
+                $('#crop-preview').attr('src', previewUrl);
+
+                // --- 识别 ---
+                const { data: { text, confidence } } = await worker.recognize(cellCanvas);
+                
+                const char = text.toUpperCase().replace(/[^A-Z]/g, '').trim().charAt(0);
+                
+                console.log(`[${r+1},${c+1}] => ${char} (${confidence}%)`);
+
+                // --- 填空 ---
+                if (char) {
+                    $inputs.eq(count).val(char);
+                }
+
+                count++;
+                // 更新进度条
+                const progress = (count / 70) * 100;
+                $('#ocr-bar').css('width', `${progress}%`);
+                $('#ocr-status').text(`正在识别... ${count}/70 (行${r+1} 列${c+1})`);
+            }
+        }
+
         await worker.terminate();
         
-        const success = parseAndFillMatrix(text);
-
-        if(success) {
-            $('#ocr-status').text("识别成功！").css('color', 'green');
+        if (isProcessing) {
+            $('#ocr-status').text("识别完成！").css('color', 'green');
+            $('#btn-confirm-crop').text('完成').prop('disabled', false);
+            // 给用户一点时间看最后的状态，然后跳转
             setTimeout(() => switchView('view-matrix'), 800);
-        } else {
-            $('#ocr-status').text("识别完成，请核对。").css('color', '#FF9800');
-            setTimeout(() => switchView('view-matrix'), 1500);
         }
 
     } catch (err) {
         console.error(err);
-        let msg = err.message || err;
-        if (msg.includes("404") || msg.includes("NetworkError")) {
-             msg = "模型加载失败，请确认 eng.traineddata 已放入文件夹。";
-        }
-        $('#ocr-status').text("错误: " + msg).css('color', 'red');
+        $('#ocr-status').text("错误: " + (err.message || err)).css('color', 'red');
         if(worker) await worker.terminate();
+        $('#btn-confirm-crop').prop('disabled', false).text('重试');
     }
-}
-
-// ================= 解析逻辑 =================
-function parseAndFillMatrix(text) {
-    console.log("=== OCR Raw Output ===");
-    console.log(text);
-
-    // 提取所有大写字母
-    const allLetters = text.toUpperCase().replace(/[^A-Z]/g, '');
-    
-    console.log("Extracted Letters:", allLetters);
-    
-    const $inputs = $('.matrix-input');
-    $inputs.val(''); 
-    
-    // 我们强制按顺序填空。
-    // 因为图片是我们几何重构的，顺序绝对是标准对齐的
-    // 所以即使 Tesseract 漏读了一个换行符也没关系，字母顺序是对的
-    for(let i=0; i<allLetters.length && i<70; i++) {
-        $inputs.eq(i).val(allLetters[i]);
-    }
-
-    return allLetters.length >= 60;
 }
 
 // ================= 通用辅助函数 =================
