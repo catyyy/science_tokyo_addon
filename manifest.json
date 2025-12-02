@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "东京科学大学自动认证系统",
-  "version": "1.1",
-  "description": "自动输入学籍号、密码及矩阵代码",
+  "version": "1.4",
+  "description": "自动输入学籍号、密码及矩阵代码 (支持本地OCR)",
   "permissions": ["storage"],
   "host_permissions": [
     "https://portal.nap.gsic.titech.ac.jp/*"
@@ -17,5 +17,19 @@
       "js": ["jquery.min.js", "content.js"],
       "run_at": "document_end"
     }
-  ]
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "tesseract.min.js",
+        "worker.min.js",
+        "tesseract-core.wasm.js",
+        "eng.traineddata"
+      ],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'; worker-src 'self';"
+  }
 }
