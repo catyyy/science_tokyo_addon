@@ -37,10 +37,111 @@
         input[type="text"], input[type="password"] { width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
         label { display: block; margin-bottom: 5px; font-weight: bold; color: #555; font-size: 13px; }
 
+        /* ================= 拟真学生证样式 ================= */
+        .student-card {
+            background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%);
+            border: 2px solid #999;
+            border-radius: 8px;
+            padding: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            margin: 10px 0;
+        }
+        
+        .matrix-section {
+            background: white;
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        
+        /* 列标签 A-J */
+        .col-labels {
+            display: grid;
+            grid-template-columns: 20px repeat(10, 1fr);
+            gap: 1px;
+            margin-bottom: 1px;
+        }
+        
+        .col-label {
+            text-align: center;
+            font-weight: bold;
+            font-size: 9px;
+            color: white;
+            background: #333;
+            padding: 2px 0;
+            border-radius: 1px;
+        }
+        
+        /* 第一个空格子占位 */
+        .col-labels::before {
+            content: '';
+            grid-column: 1;
+        }
+        
         /* 矩阵表格 */
-        .matrix-grid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 2px; margin: 15px 0; }
-        .matrix-input { width: 100%; aspect-ratio: 1; text-align: center; border: 1px solid #ccc; text-transform: uppercase; border-radius: 3px; font-size: 12px; padding: 0; }
-        .matrix-input:focus { border-color: #2196F3; background: #e3f2fd; outline: none; }
+        .matrix-table {
+            display: flex;
+            flex-direction: column;
+            gap: 0px; /* 移除行间距 */
+        }
+        
+        .matrix-row {
+            display: grid;
+            grid-template-columns: 20px 1fr;
+            gap: 1px;
+            align-items: stretch;
+        }
+        
+        /* 行标签 1-7 */
+        .row-label {
+            background: #333;
+            color: white;
+            font-weight: bold;
+            font-size: 9px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 1px;
+            height: 20px; /* 与格子高度完全一致 */
+        }
+        
+        /* 单行的格子容器 */
+        .matrix-cells {
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            gap: 1px;
+        }
+        
+        /* 单个输入格子 - 扁平紧凑样式 */
+        .matrix-cell-input {
+            height: 20px; /* 从24px降低到20px */
+            min-width: 0; /* 允许压缩 */
+            text-align: center;
+            border: 1px solid #ccc;
+            text-transform: uppercase;
+            border-radius: 2px;
+            font-size: 11px;
+            font-weight: bold;
+            padding: 0 2px;
+            background: white; /* 默认白色 */
+            color: #333;
+        }
+        
+        /* 粉白交替棋盘格效果 - 按行交替 */
+        .matrix-row:nth-child(odd) .matrix-cell-input {
+            background: #fce4ec; /* 奇数行(1,3,5,7)粉色 */
+        }
+        
+        .matrix-row:nth-child(even) .matrix-cell-input {
+            background: white; /* 偶数行(2,4,6)白色 */
+        }
+        
+        .matrix-cell-input:focus {
+            border-color: #2196F3;
+            background: #e3f2fd !important;
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2);
+        }
 
         /* 底部导航按钮组 */
         .nav-btns { display: flex; gap: 10px; margin-top: 20px; }
@@ -57,6 +158,15 @@
             position: relative;
             overflow: hidden;
             border-radius: 4px;
+        }
+        
+        /* 网格覆盖层 */
+        #grid-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+            z-index: 1000;
         }
 
         /* 待裁剪图片：只限制宽，不限制高(由容器裁剪) */
@@ -105,7 +215,7 @@
         .cropper-dashed{border:0 dashed #eee;display:block;opacity:.5;position:absolute}
         .cropper-dashed.dashed-h{border-bottom-width:1px;left:0;top:33.33333%;width:100%;height:0}
         .cropper-dashed.dashed-v{border-right-width:1px;left:33.33333%;top:0;width:0;height:100%}
-        .cropper-center{display:block;height:0;left:50%;opacity:.75;position:absolute;top:50%;width:0}
+        .cropper-center{display:none!important}
         .cropper-center:before,.cropper-center:after{background-color:#eee;content:" ";display:block;position:absolute}
         .cropper-center:before{height:1px;left:-3px;top:0;width:7px}
         .cropper-center:after{height:7px;left:0;top:-3px;width:1px}
@@ -124,92 +234,160 @@
 <body>
 
     <div id="view-home" class="view-container active">
-        <h3>东科大自动认证助手</h3>
+        <!-- 语言选择下拉框 -->
+        <div style="position: absolute; top: 15px; right: 15px;">
+            <select id="language-select" style="padding: 5px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; cursor: pointer;">
+                <option value="ja">日本語</option>
+                <option value="zh">中文</option>
+                <option value="en">English</option>
+            </select>
+        </div>
+        
+        <h3 data-i18n="app_title">東京科学大学理工学系Portal自動認証</h3>
+        
         <div style="padding: 20px 0;">
-            <button class="btn btn-primary" id="btn-home-new">➕ 新建 / 重置配置</button>
-            <button class="btn btn-secondary" id="btn-home-edit">✏️ 编辑现有配置</button>
+            <button class="btn btn-primary" id="btn-home-new" data-i18n="btn_new">➕ 新規作成 / リセット</button>
+            <button class="btn btn-secondary" id="btn-home-edit" data-i18n="btn_edit">✏️ 既存の設定を編集</button>
         </div>
         <div style="margin-top: 30px; border-top: 1px solid #eee; padding-top: 10px;">
-             <button class="btn btn-danger" id="btn-home-clear" style="font-size: 12px; width: auto; margin: 0 auto; padding: 8px 15px;">🗑️ 清除所有数据</button>
+             <button class="btn btn-danger" id="btn-home-clear" data-i18n="btn_clear" style="font-size: 12px; width: auto; margin: 0 auto; padding: 8px 15px;">🗑️ すべてのデータを消去</button>
         </div>
     </div>
 
     <div id="view-step1" class="view-container">
-        <h3>账号信息</h3>
-        <label>学籍番号 (Student ID)</label>
-        <input type="text" id="username" placeholder="例: 23B12345">
+        <h3 data-i18n="account_info">アカウント情報</h3>
+        <label data-i18n="student_id">学籍番号 (Student ID)</label>
+        <input type="text" id="username" data-i18n-placeholder="username_placeholder" placeholder="例: 23B12345">
         
-        <label>密码 (Password)</label>
-        <input type="password" id="password" placeholder="Portal Password">
+        <label data-i18n="password">パスワード (Password)</label>
+        <input type="password" id="password" data-i18n-placeholder="password_placeholder" placeholder="Portal Password">
         
         <div class="nav-btns">
-            <button class="btn btn-secondary" id="back-to-home">返回</button>
-            <button class="btn btn-primary" id="goto-choice">下一步 ➡</button>
+            <button class="btn btn-secondary" id="back-to-home" data-i18n="btn_back_home">⬅ ホームに戻る</button>
+            <button class="btn btn-primary" id="goto-choice" data-i18n="btn_next">次へ ➡</button>
         </div>
     </div>
 
     <div id="view-choice" class="view-container">
-        <h3>选择矩阵输入方式</h3>
+        <h3 data-i18n="choose_input_method">マトリクス入力方式を選択</h3>
         
         <div class="choice-card" id="card-ocr">
             <div class="choice-icon">📸</div>
-            <div class="choice-title">拍照自动识别 (推荐)</div>
-            <div class="choice-desc">上传学生证 -> 裁剪 -> 自动读取</div>
+            <div class="choice-title" data-i18n="ocr_title">写真自動認識（推奨）</div>
+            <div class="choice-desc" data-i18n="ocr_desc">学生証をアップロード → トリミング → 自動読取</div>
         </div>
 
         <div class="choice-card" id="card-manual">
             <div class="choice-icon">⌨️</div>
-            <div class="choice-title">手动输入</div>
-            <div class="choice-desc">手动逐个输入 70 个字符</div>
+            <div class="choice-title" data-i18n="manual_title">手動入力</div>
+            <div class="choice-desc" data-i18n="manual_desc">70文字を手動で一つずつ入力</div>
         </div>
 
         <div class="nav-btns">
-            <button class="btn btn-secondary" id="back-to-step1">⬅ 上一步</button>
+            <button class="btn btn-secondary" id="back-to-step1" data-i18n="btn_back">⬅ 前に戻る</button>
         </div>
     </div>
 
     <div id="view-ocr" class="view-container">
-        <h3>图片处理</h3>
+        <h3 data-i18n="image_processing">画像処理</h3>
         
         <input type="file" id="file-input" accept="image/*" style="display: none;">
         
-        <button class="btn btn-secondary" id="btn-select-file">📂 选择照片 (背面)</button>
+        <button class="btn btn-secondary" id="btn-select-file" data-i18n="btn_select_photo">📂 写真を選択（裏面）</button>
 
         <div id="crop-container">
+            <canvas id="grid-overlay"></canvas>
             <img id="image-to-crop" src="">
         </div>
         
         <div id="crop-hint" style="text-align:center; font-size:12px; color:#666; display:none; margin-bottom: 10px;">
-            请拖动裁剪框，只框选 7x10 的矩阵区域（不要包含行列号）
+            <span data-i18n="crop_hint">💡 使い方：トリミング枠をドラッグして<strong>緑色のグリッド</strong>を70個のマスに合わせ、マウスホイールで画像サイズを調整</span>
         </div>
 
         <div id="debug-preview-container">
-            <div class="debug-hint">即将对此区域进行识别：</div>
+            <div class="debug-hint" data-i18n="preview_hint">この領域を認識します：</div>
             <img id="crop-preview">
-            <div style="font-size:10px; color:#666;">如果包含杂物或切歪了，请返回重试</div>
+            <div style="font-size:10px; color:#666;" data-i18n="preview_warning">不要物が含まれていたり、傾いている場合は戻ってやり直してください</div>
         </div>
 
         <div id="ocr-progress"><div id="ocr-bar"></div></div>
         <div id="ocr-status" class="status-text"></div>
 
         <div class="nav-btns">
-            <button class="btn btn-secondary" id="back-to-choice">⬅ 返回</button>
-            <button class="btn btn-primary" id="btn-confirm-crop" style="display: none;">✂ 确认并识别</button>
+            <button class="btn btn-secondary" id="back-to-choice" data-i18n="btn_back">⬅ 前に戻る</button>
+            <button class="btn btn-primary" id="btn-confirm-crop" style="display: none;" data-i18n="btn_confirm_crop">✂ 確認して認識</button>
         </div>
     </div>
 
     <div id="view-matrix" class="view-container">
-        <h3>确认矩阵数据</h3>
+        <h3 data-i18n="confirm_matrix">マトリックスデータの確認</h3>
         
-        <div style="font-size: 12px; color: #666; text-align: center; margin-bottom: 5px;">
-            请核对下方数据是否正确
+        <div id="ocr-confidence-hint" style="font-size: 12px; color: #666; text-align: center; margin-bottom: 10px; display: none;">
+            <span data-i18n="confidence_hint">💡 データ確認：黄色=信頼度低、赤色=信頼度極低</span>
         </div>
         
-        <div class="matrix-grid" id="grid-container"></div>
+        <!-- 拟真学生证样式 -->
+        <div class="student-card">
+            <!-- 矩阵区域 -->
+            <div class="matrix-section">
+                <!-- 列标签 A-J -->
+                <div class="col-labels">
+                    <div class="col-label">A</div>
+                    <div class="col-label">B</div>
+                    <div class="col-label">C</div>
+                    <div class="col-label">D</div>
+                    <div class="col-label">E</div>
+                    <div class="col-label">F</div>
+                    <div class="col-label">G</div>
+                    <div class="col-label">H</div>
+                    <div class="col-label">I</div>
+                    <div class="col-label">J</div>
+                </div>
+                
+                <!-- 矩阵网格（7行×10列） -->
+                <div class="matrix-table">
+                    <!-- 第1行 -->
+                    <div class="matrix-row">
+                        <div class="row-label">1</div>
+                        <div class="matrix-cells" data-row="0"></div>
+                    </div>
+                    <!-- 第2行 -->
+                    <div class="matrix-row">
+                        <div class="row-label">2</div>
+                        <div class="matrix-cells" data-row="1"></div>
+                    </div>
+                    <!-- 第3行 -->
+                    <div class="matrix-row">
+                        <div class="row-label">3</div>
+                        <div class="matrix-cells" data-row="2"></div>
+                    </div>
+                    <!-- 第4行 -->
+                    <div class="matrix-row">
+                        <div class="row-label">4</div>
+                        <div class="matrix-cells" data-row="3"></div>
+                    </div>
+                    <!-- 第5行 -->
+                    <div class="matrix-row">
+                        <div class="row-label">5</div>
+                        <div class="matrix-cells" data-row="4"></div>
+                    </div>
+                    <!-- 第6行 -->
+                    <div class="matrix-row">
+                        <div class="row-label">6</div>
+                        <div class="matrix-cells" data-row="5"></div>
+                    </div>
+                    <!-- 第7行 -->
+                    <div class="matrix-row">
+                        <div class="row-label">7</div>
+                        <div class="matrix-cells" data-row="6"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
         
         <div class="nav-btns">
-            <button class="btn btn-secondary" id="back-to-ocr">⬅ 重新识别</button>
-            <button class="btn btn-primary" id="btn-save-final">✅ 保存并完成</button>
+            <button class="btn btn-secondary" id="back-to-ocr" data-i18n="btn_re_recognize">⬅ 再認識</button>
+            <button class="btn btn-primary" id="btn-save-final" data-i18n="btn_save_complete">✅ 保存して完了</button>
         </div>
     </div>
 

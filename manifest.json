@@ -1,15 +1,25 @@
 {
   "manifest_version": 3,
-  "name": "东京科学大学自动认证系统",
-  "version": "1.4",
-  "description": "自动输入学籍号、密码及矩阵代码 (支持本地OCR)",
+  "name": "東京科学大学理工学系Portal自動認証",
+  "version": "1.0",
+  "description": "学籍番号・パスワード・マトリックスコードを自動入力（ローカルOCR対応）",
   "permissions": ["storage"],
   "host_permissions": [
     "https://portal.nap.gsic.titech.ac.jp/*"
   ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
   "action": {
     "default_popup": "popup.html",
-    "default_title": "点击配置自动登录"
+    "default_title": "自動ログイン設定",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
   },
   "content_scripts": [
     {
