@@ -1,0 +1,14 @@
+{
+  "extensionName": {
+    "message": "东京科学大学理工学系Portal自动认证(Unofficial)",
+    "description": "Extension name"
+  },
+  "extensionDescription": {
+    "message": "自动输入学籍号、密码及矩阵代码（支持本地OCR）",
+    "description": "Extension description"
+  },
+  "actionTitle": {
+    "message": "点击配置自动登录",
+    "description": "Browser action title"
+  }
+}

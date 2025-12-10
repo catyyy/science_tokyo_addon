@@ -1,0 +1,14 @@
+{
+  "extensionName": {
+    "message": "Science Tokyo Portal Auto-Authentication(Unofficial)",
+    "description": "Extension name"
+  },
+  "extensionDescription": {
+    "message": "Auto-fill student ID, password and matrix code (with local OCR support)",
+    "description": "Extension description"
+  },
+  "actionTitle": {
+    "message": "Configure Auto-Login",
+    "description": "Browser action title"
+  }
+}

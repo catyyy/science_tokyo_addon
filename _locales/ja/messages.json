@@ -1,0 +1,14 @@
+{
+  "extensionName": {
+    "message": "東京科学大学理工学系Portal自動認証(Unofficial)",
+    "description": "Extension name"
+  },
+  "extensionDescription": {
+    "message": "学籍番号・パスワード・マトリックスコードを自動入力（ローカルOCR対応）",
+    "description": "Extension description"
+  },
+  "actionTitle": {
+    "message": "自動ログイン設定",
+    "description": "Browser action title"
+  }
+}
